@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8"/>
+    <meta name="format-detection" content="telephone=no"/>
+    <!-- WARNING: for iOS 7, remove the width=device-width and height=device-height attributes. See https://issues.apache.org/jira/browse/CB-4323 -->
+    <meta name="viewport"  content="user-scalable=no, initial-scale=1, maximum-scale=1, minimum-scale=1"/>
+          <!-- removed from viewport: , target-densitydpi=device-dpi -->
+    <link rel="stylesheet" type="text/css" href="lib/jquery-mobile/jquery.mobile-1.4.0.min.css"/>
+    <link rel="stylesheet" type="text/css" href="css/index.css"/>
+    <link rel="stylesheet" type="text/css" href="css/jquery-1.4_overrides.css"/>
+    <link rel="stylesheet" type="text/css" href="css/notification.css" />
+
+    <script type="text/javascript" src="phonegap.js"></script>
+    <script type="text/javascript" src="cordova.js"></script>
+    <script type="text/javascript" src="lib/jquery-1.10.2.min.js"></script>
+    <script type="text/javascript" src="lib/handlebars-v1.3.0.js"></script>
+    <script>
+        $(document).on('mobileinit', function () {
+            //if (core.DEBUG) { console.log('Configuring jQuery Mobile...'); }
+            // ^^ This breaks because core isn't loaded yet. Move below if needed.
+            $.support.cors = true;
+            $.mobile.allowCrossDomainPages = true;
+
+            // A few more secret sauce phonegap settings
+            $.mobile.loader.prototype.options.theme = 'b';
+        });
+    </script>
+    <script type="text/javascript" src="lib/fastclick.js"></script>
+    <script type="text/javascript" src="lib/jquery-mobile/jquery.mobile-1.4.0.min.js"></script>
+    <script type="text/javascript" src="js/core.js"></script>
+    <script type="text/javascript" src="js/api.js"></script>
+    <script type="text/javascript" src="js/auth.js"></script>
+    <script type="text/javascript" src="js/capture.js"></script>
+    <script type="text/javascript" src="js/inventory.js"></script>
+    <script type="text/javascript" src="js/requests.js"></script>
+    <script type="text/javascript" src="js/index.js"></script>
+
+    <!-- Handlebars templates -->
+    <script id="nav-bar-partial" type="text/x-handlebars-template">
+        {{! Used for top navigation bar}}
+        <div data-role="navbar" class="custom-navbar ui-nodisc-icon" data-iconpos="left">
+            <ul>
+                <li><a href="javascript:app.showInventoryListView()" data-icon="inventory">Inventory</a></li>
+                <li class="ui-badge-container"><span class="badge"></span><a href="javascript:app.showRequestsListView()" data-icon="requests">Requests</a></li>
+                <li><a href="javascript:auth.showLogoutConfirmationDialog()" data-icon="logout">Logout</a></li>
+            </ul>
+        </div>
+    </script>
+
+    <script id="item-partial" type="text/x-handlebars-template">
+        {{! Used for rendering items}}
+        <div class="ui-body greytext">
+            <h1>{{plant}}</h1>
+            <p class="details-content">
+                // Todo: Extract nested if logic for existing data.
+                <strong>List Price:</strong> <span>${{catalog_price}}</span><br />
+                {{#if discount_price}}<strong>Sale Price:</strong> <span class="grey">${{discount_price}}</span><br />{{/if}}
+                <strong>Net:</strong> <span>{{#if is_discountable}}No{{else}}Yes{{/if}}</span><br />
+                <strong>Quantity:</strong> <span>{{#ifMore quantity 0}}{{quantity}}{{else}}Unknown{{/ifMore}}</span><br />
+                <strong>Size:</strong> <span>
+                    {{#if min_size}}
+                        {{min_size}}
+                        {{#if max_size}}- {{max_size}}{{/if}}
+                    {{else}}
+                        {{#if max_size}}{{max_size}}
+                        {{else}}Unknown{{/if}}
+                    {{/if}}</span><br />
+                <strong>Height:</strong> <span class="grey">
+                    {{#if min_height}}
+                        {{humanizeInches min_height}}
+                        {{#if max_height}}- {{humanizeInches max_height}}{{/if}}
+                    {{else}}
+                        {{#if max_height}}{{humanizeInches max_height}}
+                        {{else}}Unknown{{/if}}
+                    {{/if}}
+                </span><br />
+                {{#if package}}<strong>Package:</strong> <span class="grey">{{package}}</span><br />{{/if}}
+
+                <strong>Caliper:</strong> <span>
+                    {{#if min_caliper}}
+                        {{humanizeInches min_caliper}}
+                        {{#if max_caliper}}- {{humanizeInches max_caliper}}{{/if}}
+                    {{else}}
+                        {{#if max_caliper}}{{humanizeInches max_caliper}}
+                        {{else}}Unknown{{/if}}
+                    {{/if}}
+                </span><br />
+                <strong>Spread:</strong> <span>
+                    {{#if min_spread}}
+                        {{humanizeInches min_spread}}
+                        {{#if max_spread}}- {{humanizeInches max_spread}}{{/if}}
+                    {{else}}
+                        {{#if max_spread}}{{humanizeInches max_spread}}
+                        {{else}}Unknown{{/if}}
+                    {{/if}}
+                </span><br />
+                <strong>Clear Trunk:</strong> <span>
+                    {{#if min_clear_trunk}}
+                        {{humanizeInches min_clear_trunk}}
+                        {{#if max_clear_trunk}}- {{humanizeInches max_clear_trunk}}{{/if}}
+                    {{else}}
+                        {{#if max_clear_trunk}}{{humanizeInches max_clear_trunk}}
+                        {{else}}Unknown{{/if}}
+                    {{/if}}
+                </span><br />
+                <strong>Total Wood:</strong> <span>
+                    {{#if min_total_wood}}
+                        {{humanizeInches min_total_wood}}
+                        {{#if max_total_wood}}- {{humanizeInches max_total_wood}}{{/if}}
+                    {{else}}
+                        {{#if max_total_wood}}{{humanizeInches max_total_wood}}
+                        {{else}}Unknown{{/if}}
+                    {{/if}}
+                </span><br />
+
+                {{#if tags}}<strong>Tags:</strong> <span class="grey">{{#each tags}}{{.}}{{#if @last }}{{else}}, {{/if}}{{/each}}</span><br />{{/if}}
+                {{#if comment}}<strong>Comments:</strong> <span>{{comment}}</span>{{/if}}
+            </p>
+            <strong>Images</strong>
+                <div class="ui-grid-b">
+            {{#if images}}
+                {{#each images}}
+                    <div class="ui-block-{{this.letter}}"><img src="https://clientsite.com{{this.img}}" style="width:99%" /></div>
+                {{/each}}
+            {{/if}}
+            </div>
+        </div>
+    </script>
+
+    <script id="request-items" type="text/x-handlebars-template">
+        {{#each image_requests}}
+        <li>
+            <a href="javascript:requests.showRequestDetailsView('{{this.nitem}}')">
+                {{this.plant}}
+                <p>
+                    <strong>From:</strong> <span class="grey">{{#if this.landscaper}}{{this.landscaper}}{{else}}Unknown{{/if}}</span>
+                </p>
+            </a>
+        </li>
+        {{/each}}
+    </script>
+
+
+    <script id="inventory-items" type="text/x-handlebars-template">
+        {{#each items}}
+        <li>
+            <a href="javascript:inventory.showItemsDetailsView('{{this.id}}')">
+                {{this.plant}}
+                <br />
+                <p>
+                    <strong>List Price:</strong> <span class="grey">${{this.catalog_price}}</span>
+                    {{#if this.discount_price}}<strong>Sale Price:</strong> <span class="grey">${{this.discount_price}}</span>{{/if}}
+                    <strong>Quantity:</strong> <span class="grey">{{#ifMore this.quantity 0}}{{this.quantity}}{{else}}Unknown{{/ifMore}}</span>
+                    <strong>Size:</strong> <span class="grey">{{#if this.min_size}}{{this.min_size}}{{else}}Unknown{{/if}}</span>
+                </p>
+            </a>
+        </li>
+        {{/each}}
+    </script>
+
+    <script id="inventory-list" type="text/x-handlebars-template">
+        <div data-role="page">
+            <div data-role="header" data-position="fixed">
+                <div class="header_override">
+                    <h1 class="title_override">Inventory List</h1>
+                    <a href="javascript:inventory.refreshList()" id="refreshInventory" class="ui-btn ui-btn-right ui-icon-refresh  ui-btn-icon-notext ui-nodisc-icon" style = "background-color: transparent !important; border: 0px !important; padding: 10px 5px 2px 25px; margin: -4px -5px 0 0;"></a>
+                </div>
+
+                {{> nav-bar-partial}}
+            </div>
+
+            <ul id="inventoryList" data-role="listview" data-filter="true" data-inset="true" class="ui-nodisc-icon ui-alt-icon" data-icon="carat-r">
+            
+            </ul>
+        </div>
+    </script>
+
+    <script id="inventory-details" type="text/x-handlebars-template">
+        // redacted
+    </script>
+
+    <script id="capture-page" type="text/x-handlebars-template">
+        <div data-role="page">
+            <div data-role="header" data-position="fixed">
+                <div class="header_override">
+                    <h1 class="title_override">Image Upload</h1>
+                </div>
+            </div>
+            <div id="smallimages_container">
+                <a href="javascript:capture.getPhoto(capture.LIBRARY)"><img class="image-add-button" src="img/buttons/image-add_2.png"/></a>
+            </div>
+            <div data-role="footer" data-tap-toggle="false" data-position="fixed" class="details-footer-navbar">
+                <div data-role="navbar" class="footer_navbar ui-nodisc-icon" data-iconpos="top" data-mini="true">
+                    <ul>
+                        {{#unless android}}<li><a href="javascript:inventory.showItemsDetailsView(inventory.current_item_id)" data-icon="back" class="ui-alt-icon">Back</a></li>{{/unless}}
+                        <li><a href="javascript:capture.getPhoto(capture.CAMERA)" data-icon="takephoto">Take Photo</a></li>
+                        <li><a href="javascript:capture.uploadImages()" class="ui-alt-icon" data-icon="action">Upload</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </script>
+
+    <script id="request-list" type="text/x-handlebars-template">
+        <div data-role="page">
+            <div data-role="header" data-position="fixed">
+                <div class="header_override">
+                    <h1 class="title_override">Image Requests</h1>
+                    <a href="javascript:requests.refreshList()" id="refreshRequests" class="ui-btn ui-btn-right ui-icon-refresh  ui-btn-icon-notext ui-nodisc-icon" style = "background-color: transparent !important; border: 0px !important;"></a>
+                </div>
+
+                {{> nav-bar-partial}}
+            </div>
+
+            <ul id="requestsList" data-role="listview" data-inset="true" class="ui-nodisc-icon ui-alt-icon" data-icon="carat-r">
+                {{#each image_requests}}
+                <li>
+                    <a href="javascript:requests.showRequestDetailsView('{{this.nitem}}')">
+                        {{this.plant}}
+                        <p>
+                            <strong>From:</strong> <span class="grey">{{#if this.landscaper}}{{this.landscaper}}{{else}}Unknown{{/if}}</span>
+                        </p>
+                    </a>
+                </li>
+                {{/each}}
+            </ul>
+        </div>
+    </script>
+
+    <script id="request-details" type="text/x-handlebars-template">
+        <div data-role="page">
+            <div data-role="header" data-position="fixed">
+                <div class="header_override">
+                    <h1 class="title_override">Image Request Details</h1>
+                </div>
+
+                {{> nav-bar-partial}}
+            </div>
+
+            <div class="ui-grid-a center">
+                {{> item-partial}}
+            </div>
+            <div data-role="footer" data-tap-toggle="false" data-position="fixed" class="details-footer-navbar">
+                <div data-role="navbar" class="footer_navbar ui-nodisc-icon" data-iconpos="top" data-mini="true">
+                    <ul>
+                        <li><a href="javascript:requests.showContactMessageView('{{id}}')" data-icon="contact">Contact</a></li>
+                        <li><a href="javascript:capture.getPhoto(capture.CAMERA)" data-icon="takephoto">Take Photo</a></li>
+                        <li><a href="javascript:capture.getPhoto(capture.LIBRARY)" class="ui-alt-icon" data-icon="library">Image Library</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </script>
+
+    <script id="contact-page" type="text/x-handlebars-template">
+        <div data-role="page">
+            <div data-role="header" data-position="fixed">
+                <div class="header_override">
+                    <h1 class="title_override">Contact</h1>
+                </div>
+
+                {{> nav-bar-partial}}
+            </div>
+
+            <div class="ui-grid-a center">
+                <div class="ui-body greytext">
+                    <input type="text" id="contactRequesterName" readonly="true" value="To: {{landscaper}}" />
+                    <textarea name="textarea" id="contactMessage" style="height: 100px;"></textarea>
+                </div>
+            </div>
+            <div data-role="footer" data-tap-toggle="false" data-position="fixed" class="details-footer-navbar">
+                <div data-role="navbar" class="footer_navbar ui-nodisc-icon" data-iconpos="top" data-mini="true">
+                    <ul>
+                        <li><a href="javascript:requests.renderRequestDetails('{{id}}')" data-icon="back" class="ui-alt-icon">Cancel</a></li>
+                        <li><a href="javascript:requests.postMessage('{{id}}')" data-icon="action" class="ui-alt-icon">Send</a></li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </script>
+
+    <!-- /Handlebars templates -->
+
+    <title>Sign In</title>
+</head>
+<body>
+
+<!-- Start of first page -->
+<div data-role="page" id="loginPage">
+    <div data-role="content">
+        <div id="logospacer">
+            <img src="./img/logo.png" alt="Logo" width="266" height="114"/><!-- 533 x 228 -->
+        </div>
+        <form id="loginForm" method="post">
+            <div class="green100spacer"></div>
+            <input type="text" name="username" id="username" placeholder="Username" data-role="none"/> <!-- value="testappnursery_la" -->
+
+            <div class="green100spacer"></div>
+            <input type="password" name="password" id="password" placeholder="Password" width="200px" data-role="none"/> <!-- value="appattoapple"  -->
+
+            <div class="green100spacer"></div>
+
+            <!-- JQM styling
+             <div data-role="fieldcontain" class="ui-hide-label">
+             <label for="password">Password:</label>
+             <input type="password" name="password" id="password" value="appattoapple" placeholder="Password" width="200px" data-role="none" />
+             </div>-->
+
+            <div class="center-wrapper" id="loginWrapper">
+                <input type="submit" value="&nbsp;&nbsp;&nbsp;&nbsp;Log In&nbsp;&nbsp;&nbsp;&nbsp;" id="loginButton"
+                       data-theme="b" data-inline="true">
+            </div>
+        </form>
+        <div class="center-wrapper logintext">
+
+            <p><a href="javascript:window.open('https://clientsite.com/accounts/password/reset', '_system', 'location=yes')">Forgot Password</a>
+
+                <!--<a href="javascript:window.open('https://clientsite.com/accounts/password/reset', '_blank', 'location=yes')">Forgot Password</a></p> -->
+                <!-- This requires the obj-c webviewdelegate.m tweak noted in ios.sh For android may need to use: navigator.app.loadUrl("http://google.com", {openExternal : true});-->
+        
+            <p class="greentext">────── OR ──────</p>
+
+            <p><a href="#noAccountPage">Don't have an account?</a></p>
+        </div>
+    </div>
+    <!-- /content -->
+</div>
+<!-- /page -->
+
+<!-- Start of noaccount page -->
+<div data-role="page" id="noAccountPage">
+    <div data-role="header" data-position="fixed">
+        <div id="page2header" class="header_override">
+            <h1 class="title_override">Register</h1>
+        </div>
+    </div>
+    <!-- /header -->
+    <div data-role="content">
+        <p>You need to create your account on the website at clientsite.com.</p>
+
+        <p><a href="#loginPage">Back to Login page</a></p>
+    </div>
+    <!-- /content -->
+</div>
+<!-- /page -->
+
+</body>
+</html>
