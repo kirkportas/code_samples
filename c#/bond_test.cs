@@ -9,8 +9,8 @@ Write a program to produce daily accrued interest and cashflow for each day in 2
 The result should be a file with 731 rows (one for each day) and 3 columns: date, accrued.interest, cashflow.
 
 Kirk's Notes: 
-    - this is a 2012 code sample for a hedge fund test, I was offered the job.
-    - this file compiles and is correct.
+    - this is an old code sample for a hedge fund test.
+    - this file compiles and has the correct result.
 */
 
 using System;
